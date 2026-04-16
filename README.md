@@ -1,14 +1,13 @@
 # Beat Battle VST
 
-A VST3 plugin for the Beat Battle platform that enables real-time multiplayer beat battles directly from your DAW.
+A VST3 plugin that embeds the Beat Battle website (https://beat-battle.net/) directly into your DAW.
 
 ## Features
 
-- **Real-time Multiplayer**: Join lobbies and compete with other producers
-- **WebSocket Integration**: Seamless communication with Beat Battle servers
-- **Sample Distribution**: Automatically receive battle samples
-- **Beat Submission**: Export and submit your beats directly from the plugin
-- **Live Voting**: Participate in voting and see results in real-time
+- **Embedded Website**: Full Beat Battle website runs inside the plugin
+- **No Recreation Needed**: Website UI is mirrored exactly - any website updates automatically appear in the plugin
+- **Lightweight**: ~20KB of code - the website handles all game logic
+- **Cross-Platform**: Works on macOS and Windows
 
 ## Architecture
 
@@ -16,17 +15,15 @@ A VST3 plugin for the Beat Battle platform that enables real-time multiplayer be
 ┌─────────────────────────────────────┐
 │         Beat Battle VST             │
 ├─────────────────────────────────────┤
-│  - AuthManager (Login/Auth)         │
-│  - LobbyManager (Browse/Join)       │
-│  - SampleManager (Download/Playback)│
-│  - WebSocketManager (Real-time)     │
-└─────────────────────────────────────┘
-            ↕ WebSocket
-┌─────────────────────────────────────┐
-│   Beat Battle Backend (FastAPI)    │
-│   https://beatbattle.onrender.com   │
+│  WebBrowserComponent                │
+│  ┌───────────────────────────────┐  │
+│  │ https://beat-battle.net/      │  │
+│  │  (Full website embedded)      │  │
+│  └───────────────────────────────┘  │
 └─────────────────────────────────────┘
 ```
+
+**Key Implementation Detail**: The plugin calls `resized()` manually in the constructor to ensure components are laid out properly, as JUCE doesn't automatically trigger layout on initial creation.
 
 ## Building
 
@@ -40,8 +37,8 @@ A VST3 plugin for the Beat Battle platform that enables real-time multiplayer be
 
 ```bash
 # Clone the repository
-git clone <your-repo>
-cd beatbattle_vst
+git clone https://github.com/shplok/beat-battle-vst
+cd beat-battle-vst
 
 # Create build directory
 mkdir build && cd build
@@ -50,9 +47,9 @@ mkdir build && cd build
 cmake ..
 
 # Build
-cmake --build .
+cmake --build . --config Release
 
-# The VST3 will be in:
+# The VST3 will be installed to:
 # - macOS: ~/Library/Audio/Plug-Ins/VST3/BeatBattle VST.vst3
 # - Windows: C:\Program Files\Common Files\VST3\BeatBattle VST.vst3
 ```
@@ -60,65 +57,55 @@ cmake --build .
 ## Usage
 
 1. **Launch**: Open the plugin in your DAW
-2. **Login**: Enter your Beat Battle credentials
-3. **Browse Lobbies**: View available game rooms or create your own
-4. **Join Battle**: Enter a lobby and wait for the game to start
-5. **Cook**: Create your beat using the provided samples
-6. **Submit**: Export your beat when time's up
-7. **Vote**: Listen and vote on other submissions
-8. **Results**: See who won!
+2. **Website Loads**: Beat Battle website loads automatically
+3. **Play**: Use the website normally - login, join battles, cook, vote, etc.
+4. **Reload**: Click "Reload Website" button if needed
 
-## Game Modes
+## Project Structure
 
-- **Solo**: Practice mode with random samples
-- **Multiplayer**: 
-  - Quick Match: Join a random lobby
-  - Custom Lobby: Create with specific settings
-  - Private: Join via code
+```
+Source/
+├── PluginProcessor.cpp/h       # Audio plugin core (pass-through)
+└── PluginEditor_WebView.cpp/h  # WebView UI implementation
 
-## Configuration
-
-Edit `Source/WebSocketManager.cpp` to change the backend URL:
-
-```cpp
-juce::String WebSocketManager::getWebSocketURL() const
-{
-    // Production
-    return "wss://beatbattle.onrender.com/ws";
-    
-    // Local dev
-    // return "ws://localhost:8000/ws";
-}
+WEBVIEW_IMPLEMENTATION.md        # Technical details
+README.md                        # This file
+CMakeLists.txt                   # Build configuration
 ```
 
 ## Tech Stack
 
-- **JUCE**: Cross-platform audio framework
-- **IXWebSocket**: WebSocket client library
+- **JUCE 8.0.4**: Cross-platform audio framework
+- **WebBrowserComponent**: Native web view (WKWebView on macOS, WebView2 on Windows)
 - **C++17**: Modern C++ features
 
-## Development Roadmap
+## Future Enhancements
 
-- [x] Basic project structure
-- [x] WebSocket integration
-- [x] Authentication system
-- [ ] Lobby browser UI
-- [ ] Sample download/playback
-- [ ] Beat submission system
-- [ ] Voting interface
-- [ ] Results display
-- [ ] Audio effects (stretch goal)
+- JavaScript bridge for VST ↔ website communication
+- "Import to DAW" button to download samples from website into DAW
+- Drag-and-drop sample integration
+- DAW transport sync
 
-## Backend Integration
+## How It Works
 
-This plugin requires the Beat Battle backend to be running. The backend handles:
-- User authentication
-- Lobby management
-- Sample distribution
-- Beat collection and voting
-- Real-time game state synchronization
+The plugin uses JUCE's `WebBrowserComponent` to embed the live website. The key fix that makes it work:
 
-Backend repo: [Link when available]
+```cpp
+// In constructor:
+webBrowser = std::make_unique<juce::WebBrowserComponent>();
+addAndMakeVisible(webBrowser.get());
+webBrowser->goToURL("https://beat-battle.net/");
+
+// CRITICAL: Manually call resized() to layout components
+resized();  // Without this, components have 0x0 bounds and don't render
+```
+
+See `WEBVIEW_IMPLEMENTATION.md` for full technical details.
+
+## Website
+
+- Production: https://beat-battle.net/
+- The website handles all game logic, authentication, lobbies, samples, voting, etc.
 
 ## License
 
