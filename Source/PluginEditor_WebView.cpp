@@ -7,8 +7,16 @@ BeatBattleAudioProcessorEditor::BeatBattleAudioProcessorEditor(BeatBattleAudioPr
 {
     DBG("=== CONSTRUCTOR START ===");
 
+    // Set initial size
     setSize(800, 600);
     DBG("Set size to 800x600");
+
+    // Make the window resizable
+    setResizable(true, true);  // (resizable, use corner resizer)
+
+    // Set min/max constraints (min: small window, max: 4K display)
+    setResizeLimits(400, 300, 3840, 2160);
+    DBG("Made window resizable with constraints");
 
     setOpaque(true);
     DBG("Set opaque to true");
